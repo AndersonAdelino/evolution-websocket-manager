@@ -4,11 +4,29 @@ services:
   websocket-evolution:
     image: andersonadelino/websocket-evolution:latest
     environment:
-      - EVOLUTION_API_URL=https://evo.andersonadelino.com.br
-      - EVOLUTION_API_KEY=6b47d0c7d98d98e0215598179a99216c
+      # Configurações da Evolution API
+      - EVOLUTION_API_URL=https://api.seusite.com
+      - EVOLUTION_API_KEY=sua_api_key_aqui
       - EVOLUTION_INSTANCE_NAME=nome_da_sua_instancia
       - WEBSOCKET_MODE=global
       - PORT=3000
+      
+      # Webhook n8n
+      - N8N_WEBHOOK_URL=https://seu-n8n.com/webhook/evolution
+      - N8N_WEBHOOK_ENABLED=true
+      
+      # Eventos para enviar ao webhook (true = ativo, false = desativado)
+      - WEBHOOK_MESSAGES_UPSERT=true
+      - WEBHOOK_MESSAGES_UPDATE=false
+      - WEBHOOK_MESSAGES_DELETE=false
+      - WEBHOOK_CONNECTION_UPDATE=true
+      - WEBHOOK_QR_UPDATED=true
+      - WEBHOOK_CONTACTS_UPSERT=false
+      - WEBHOOK_CONTACTS_UPDATE=false
+      - WEBHOOK_GROUPS_UPSERT=false
+      - WEBHOOK_GROUPS_UPDATE=false
+      - WEBHOOK_CALL=false
+      
     ports:
       - "3000:3000"
     networks:

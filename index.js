@@ -13,9 +13,27 @@ const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
 const EVOLUTION_INSTANCE_NAME = process.env.EVOLUTION_INSTANCE_NAME;
 const WEBSOCKET_MODE = process.env.WEBSOCKET_MODE || 'global';
 
+// Configurações do Webhook n8n
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL;
+const N8N_WEBHOOK_ENABLED = process.env.N8N_WEBHOOK_ENABLED === 'true';
+
+// Configuração de eventos para webhook
+const WEBHOOK_EVENTS = {
+  'messages.upsert': process.env.WEBHOOK_MESSAGES_UPSERT === 'true',
+  'messages.update': process.env.WEBHOOK_MESSAGES_UPDATE === 'true',
+  'messages.delete': process.env.WEBHOOK_MESSAGES_DELETE === 'true',
+  'connection.update': process.env.WEBHOOK_CONNECTION_UPDATE === 'true',
+  'qr.updated': process.env.WEBHOOK_QR_UPDATED === 'true',
+  'contacts.upsert': process.env.WEBHOOK_CONTACTS_UPSERT === 'true',
+  'contacts.update': process.env.WEBHOOK_CONTACTS_UPDATE === 'true',
+  'groups.upsert': process.env.WEBHOOK_GROUPS_UPSERT === 'true',
+  'groups.update': process.env.WEBHOOK_GROUPS_UPDATE === 'true',
+  'call': process.env.WEBHOOK_CALL === 'true'
+};
+
 // Validar configurações
 if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
-  console.error('❌ ERRO: Configure EVOLUTION_API_URL e EVOLUTION_API_KEY no arquivo .env');
+  console.error('❌ ERRO: Configure EVOLUTION_API_URL e EVOLUTION_API_KEY');
   process.exit(1);
 }
 
@@ -34,7 +52,58 @@ if (WEBSOCKET_MODE === 'global') {
 }
 
 console.log('🔌 URL do WebSocket:', socketUrl);
+
+// Exibir configuração de webhooks
+console.log('\n🔔 Configuração de Webhooks:');
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+console.log('Webhook n8n:', N8N_WEBHOOK_ENABLED ? '✅ ATIVO' : '❌ DESATIVADO');
+if (N8N_WEBHOOK_ENABLED) {
+  console.log('URL:', N8N_WEBHOOK_URL || 'NÃO CONFIGURADA');
+  console.log('\nEventos ativos:');
+  Object.entries(WEBHOOK_EVENTS).forEach(([event, enabled]) => {
+    console.log(`  ${enabled ? '✅' : '⬜'} ${event}`);
+  });
+}
+console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
 console.log('⏳ Conectando...\n');
+
+// ============================================
+// FUNÇÃO PARA ENVIAR WEBHOOK
+// ============================================
+async function sendWebhook(eventType, data) {
+  if (!N8N_WEBHOOK_ENABLED) return;
+  if (!WEBHOOK_EVENTS[eventType]) return;
+  if (!N8N_WEBHOOK_URL) {
+    console.warn('⚠️  Webhook habilitado mas URL não configurada!');
+    return;
+  }
+
+  try {
+    const payload = {
+      event: eventType,
+      timestamp: new Date().toISOString(),
+      instance: EVOLUTION_INSTANCE_NAME || 'global',
+      data: data
+    };
+
+    const response = await fetch(N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (response.ok) {
+      console.log(`✅ Webhook enviado: ${eventType}`);
+    } else {
+      console.error(`❌ Erro ao enviar webhook: ${response.status} ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error('❌ Erro ao enviar webhook:', error.message);
+  }
+}
 
 // ============================================
 // CONFIGURAR WEBSOCKET
@@ -87,65 +156,66 @@ socket.on('reconnect_error', (error) => {
 // EVENTOS DA EVOLUTION API
 // ============================================
 
-// 📩 MENSAGENS
-socket.on('messages.upsert', (data) => {
+socket.on('messages.upsert', async (data) => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📩 NOVA MENSAGEM RECEBIDA');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(JSON.stringify(data, null, 2));
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
-  
-  // Aqui você pode processar a mensagem
-  // Exemplo: enviar para banco de dados, webhook, etc
+  await sendWebhook('messages.upsert', data);
 });
 
-socket.on('messages.update', (data) => {
-  console.log('🔄 Mensagem atualizada:', data);
+socket.on('messages.update', async (data) => {
+  console.log('🔄 Mensagem atualizada:', JSON.stringify(data, null, 2));
+  await sendWebhook('messages.update', data);
 });
 
-socket.on('messages.delete', (data) => {
-  console.log('🗑️  Mensagem deletada:', data);
+socket.on('messages.delete', async (data) => {
+  console.log('🗑️  Mensagem deletada:', JSON.stringify(data, null, 2));
+  await sendWebhook('messages.delete', data);
 });
 
-// 🔌 CONEXÃO DO WHATSAPP
-socket.on('connection.update', (data) => {
+socket.on('connection.update', async (data) => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🔌 STATUS DA CONEXÃO');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(JSON.stringify(data, null, 2));
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  await sendWebhook('connection.update', data);
 });
 
-// 📱 QR CODE
-socket.on('qr.updated', (data) => {
+socket.on('qr.updated', async (data) => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('📱 QR CODE ATUALIZADO');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(JSON.stringify(data, null, 2));
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+  await sendWebhook('qr.updated', data);
 });
 
-// 👥 CONTATOS
-socket.on('contacts.upsert', (data) => {
-  console.log('👥 Novo contato:', data);
+socket.on('contacts.upsert', async (data) => {
+  console.log('👥 Novo contato:', JSON.stringify(data, null, 2));
+  await sendWebhook('contacts.upsert', data);
 });
 
-socket.on('contacts.update', (data) => {
-  console.log('👥 Contato atualizado:', data);
+socket.on('contacts.update', async (data) => {
+  console.log('👥 Contato atualizado:', JSON.stringify(data, null, 2));
+  await sendWebhook('contacts.update', data);
 });
 
-// 👥 GRUPOS
-socket.on('groups.upsert', (data) => {
-  console.log('👥 Novo grupo:', data);
+socket.on('groups.upsert', async (data) => {
+  console.log('👥 Novo grupo:', JSON.stringify(data, null, 2));
+  await sendWebhook('groups.upsert', data);
 });
 
-socket.on('groups.update', (data) => {
-  console.log('👥 Grupo atualizado:', data);
+socket.on('groups.update', async (data) => {
+  console.log('👥 Grupo atualizado:', JSON.stringify(data, null, 2));
+  await sendWebhook('groups.update', data);
 });
 
-// 📞 CHAMADAS
-socket.on('call', (data) => {
-  console.log('📞 Chamada:', data);
+socket.on('call', async (data) => {
+  console.log('📞 Chamada:', JSON.stringify(data, null, 2));
+  await sendWebhook('call', data);
 });
 
 // ============================================
@@ -154,7 +224,6 @@ socket.on('call', (data) => {
 
 app.use(express.json());
 
-// Endpoint de status
 app.get('/health', (req, res) => {
   const status = {
     websocket: socket.connected ? 'connected' : 'disconnected',
@@ -162,35 +231,30 @@ app.get('/health', (req, res) => {
     uptime: process.uptime(),
     timestamp: new Date().toISOString(),
     mode: WEBSOCKET_MODE,
-    url: socketUrl
+    url: socketUrl,
+    webhook: {
+      enabled: N8N_WEBHOOK_ENABLED,
+      url: N8N_WEBHOOK_URL || 'not configured',
+      events: WEBHOOK_EVENTS
+    }
   };
-  
   res.json(status);
 });
 
-// Endpoint para enviar mensagem (exemplo)
-app.post('/send-message', (req, res) => {
-  const { to, message } = req.body;
-  
-  if (!to || !message) {
-    return res.status(400).json({ error: 'Campos "to" e "message" são obrigatórios' });
-  }
-  
-  // Aqui você implementaria o envio via Evolution API REST
-  // Este é apenas um exemplo
-  res.json({ 
-    success: true, 
-    message: 'Para enviar mensagens, use a API REST da Evolution' 
+app.get('/webhook/config', (req, res) => {
+  res.json({
+    enabled: N8N_WEBHOOK_ENABLED,
+    url: N8N_WEBHOOK_URL || 'not configured',
+    events: WEBHOOK_EVENTS
   });
 });
 
-// Iniciar servidor
 app.listen(PORT, () => {
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🌐 SERVIDOR HTTP INICIADO');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-  console.log(`📨 Enviar mensagem: POST http://localhost:${PORT}/send-message`);
+  console.log(`⚙️  Webhook config: http://localhost:${PORT}/webhook/config`);
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 });
 
@@ -202,10 +266,8 @@ process.on('SIGINT', () => {
   console.log('\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('🛑 ENCERRANDO APLICAÇÃO');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  
   socket.disconnect();
   console.log('✅ WebSocket desconectado');
-  
   process.exit(0);
 });
 
@@ -213,6 +275,6 @@ process.on('uncaughtException', (error) => {
   console.error('❌ Erro não tratado:', error);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason) => {
   console.error('❌ Promise rejeitada:', reason);
 });
