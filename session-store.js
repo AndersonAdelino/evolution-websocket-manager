@@ -45,22 +45,13 @@ class CustomSessionStore extends EventEmitter {
         return callback(new Error('Session is required'));
       }
       
-      // Extrair dados relevantes da sessão
+      // Serializar a sessão para garantir que apenas dados sejam salvos
+      // Isso remove métodos e mantém apenas dados serializáveis
+      const sessionData = JSON.parse(JSON.stringify(session));
+      
+      // Extrair informações de expiração
       const expires = session.cookie?.expires;
       const expiresTimestamp = expires ? (expires instanceof Date ? expires.getTime() : new Date(expires).getTime()) : null;
-      
-      // Criar um objeto simples apenas com os dados da sessão (sem métodos)
-      // Remover propriedades que não devem ser armazenadas
-      const sessionData = {
-        cookie: session.cookie || {},
-        // Copiar todas as propriedades customizadas (exceto métodos)
-        ...Object.keys(session).reduce((acc, key) => {
-          if (key !== 'cookie' && typeof session[key] !== 'function' && key !== 'id' && key !== 'reload' && key !== 'save' && key !== 'touch' && key !== 'destroy') {
-            acc[key] = session[key];
-          }
-          return acc;
-        }, {})
-      };
       
       this.sessions.set(sid, {
         data: sessionData,
