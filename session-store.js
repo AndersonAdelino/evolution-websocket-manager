@@ -25,11 +25,11 @@ class CustomSessionStore extends EventEmitter {
         return callback();
       }
       
-      // Retornar os dados da sessão
-      // Garantir que o objeto tenha a estrutura esperada pelo express-session
-      const sessionData = stored.data;
+      // Criar uma cópia limpa dos dados da sessão
+      // O express-session precisa de um objeto simples (plain object)
+      const sessionData = JSON.parse(JSON.stringify(stored.data));
       
-      // Se sessionData não tiver cookie, criar um objeto cookie básico
+      // Garantir que tenha a propriedade cookie necessária
       if (!sessionData.cookie) {
         sessionData.cookie = {
           originalMaxAge: 24 * 60 * 60 * 1000,
