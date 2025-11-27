@@ -57,18 +57,7 @@ app.use(session({
 // ============================================
 // ROTAS
 // ============================================
-// Rotas da API primeiro (antes do static)
-app.use(adminApi);
-
-// Arquivos estáticos depois (para não interferir nas rotas da API)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Rota para o painel
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Health check
+// Health check (antes de tudo)
 app.get('/health', async (req, res) => {
   const settings = await getSettings();
   const socketStatus = websocketManager.getSocketStatus();
@@ -95,7 +84,29 @@ app.get('/health', async (req, res) => {
   res.json(status);
 });
 
-// Middleware para rotas não encontradas (deve vir depois de todas as rotas, mas antes do error handler)
+// Rotas da API (antes do static)
+app.use(adminApi);
+
+// Rota para o painel (antes do static para garantir que seja servida)
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Arquivos estáticos (deve vir por último)
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false // Não servir index.html automaticamente
+}));
+
+// Catch-all: servir index.html para todas as rotas do frontend (SPA)
+app.get('*', (req, res) => {
+  // Ignorar rotas da API e WebSocket
+  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Middleware para rotas não encontradas (não deve ser alcançado devido ao catch-all acima)
 app.use(notFound);
 
 // Middleware de tratamento de erros (deve ser o último)

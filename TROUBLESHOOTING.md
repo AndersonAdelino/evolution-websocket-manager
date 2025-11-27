@@ -36,6 +36,60 @@ networks:
 
 ---
 
+## Problema: 404 Page Not Found ao acessar o domínio
+
+### Verificar se o serviço está respondendo
+
+```bash
+# Testar diretamente no container
+docker exec -it $(docker ps -q -f name=evolution-websocket-manager) wget -qO- http://localhost:3000/health
+
+# Ou testar via curl do servidor
+curl http://localhost:3000/health
+```
+
+### Verificar configuração do Traefik
+
+1. Verifique se o router está criado no Traefik:
+```bash
+# Ver routers do Traefik
+docker service logs traefik | grep evolution-websocket-manager
+```
+
+2. Verifique se o serviço está na mesma rede que o Traefik:
+```bash
+docker service inspect evolution-websocket-manager_evolution-websocket-manager --pretty | grep -A 10 Networks
+```
+
+3. Verifique se o Traefik está conseguindo descobrir o serviço:
+```bash
+# Ver logs do Traefik
+docker service logs -f traefik | grep evolution
+```
+
+### Verificar labels do Traefik
+
+Certifique-se de que as labels estão corretas no `docker-compose.yml`:
+- `traefik.enable=1` está presente
+- `traefik.http.routers.*.rule=Host(...)` está correto
+- `traefik.http.services.*.loadbalancer.server.port=3000` está correto
+
+### Verificar se o domínio está correto
+
+No `docker-compose.yml`, verifique se o domínio na label do Traefik corresponde ao domínio que você está acessando:
+```yaml
+- traefik.http.routers.evolution-websocket-manager.rule=Host(`ws.andersonadelino.com.br`)
+```
+
+### Solução: Recriar o serviço
+
+Se nada funcionar, tente recriar o serviço:
+```bash
+docker service update --force evolution-websocket-manager_evolution-websocket-manager
+```
+
+---
+
 ## Problema: Não consigo acessar o painel pela URL configurada
 
 ### 1. Verificar se o serviço está rodando
