@@ -55,11 +55,27 @@ if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
 // Trust proxy (CRÍTICO para Traefik funcionar corretamente)
 app.set('trust proxy', 1);
 
+// Middleware de logging para debug (apenas em desenvolvimento)
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    logger.info(`${req.method} ${req.path} - IP: ${req.ip}`);
+    next();
+  });
+}
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Rate limiting geral (apenas para API)
-app.use('/api/', generalLimiter);
+// Rate limiting geral (apenas para API, não para / e /health)
+app.use((req, res, next) => {
+  if (req.path === '/health' || req.path === '/') {
+    return next();
+  }
+  if (req.path.startsWith('/api/')) {
+    return generalLimiter(req, res, next);
+  }
+  next();
+});
 
 // Configurar sessão
 // IMPORTANTE: Quando atrás do Traefik, sempre usar secure: true se PUBLIC_URL for HTTPS
@@ -83,25 +99,39 @@ app.use(session({
 // ============================================
 // Health check (antes de tudo) - versão ultra rápida
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Rotas da API (antes do static)
 app.use(adminApi);
 
 // Rota para o painel - versão simplificada e robusta
-app.get('/', (req, res) => {
-  const indexPath = path.join(__dirname, 'public', 'index.html');
-  const fs = require('fs');
-  
-  // Verificar se o arquivo existe
-  if (!fs.existsSync(indexPath)) {
-    logger.error(`Arquivo index.html não encontrado em: ${indexPath}`);
-    return res.status(500).send('Arquivo não encontrado');
+app.get('/', (req, res, next) => {
+  try {
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    const fs = require('fs');
+    
+    // Verificar se o arquivo existe (síncrono mas rápido)
+    if (!fs.existsSync(indexPath)) {
+      logger.error(`Arquivo index.html não encontrado em: ${indexPath}`);
+      return res.status(500).send('Arquivo não encontrado');
+    }
+    
+    // Servir arquivo diretamente com callback para capturar erros
+    res.sendFile(indexPath, (err) => {
+      if (err) {
+        logger.error(`Erro ao servir index.html: ${err.message}`);
+        if (!res.headersSent) {
+          next(err);
+        }
+      }
+    });
+  } catch (error) {
+    logger.error(`Erro na rota /: ${error.message}`);
+    next(error);
   }
-  
-  // Servir arquivo diretamente
-  res.sendFile(indexPath);
 });
 
 // Arquivos estáticos (deve vir por último)
@@ -167,7 +197,7 @@ logger.on('logsCleared', () => {
 // ============================================
 // INICIAR SERVIDOR
 // ============================================
-server.listen(PORT, async () => {
+server.listen(PORT, () => {
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   logger.info('🌐 SERVIDOR HTTP INICIADO');
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
@@ -175,8 +205,10 @@ server.listen(PORT, async () => {
   logger.info(`🎛️  Painel Admin: ${PUBLIC_URL}`);
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
-  // Inicializar WebSocket da Evolution API
-  await startEvolutionWebSocket();
+  // Inicializar WebSocket da Evolution API (não bloquear o servidor)
+  startEvolutionWebSocket().catch(err => {
+    logger.error(`Erro ao inicializar WebSocket: ${err.message}`);
+  });
 });
 
 // ============================================

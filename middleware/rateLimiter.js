@@ -24,6 +24,7 @@ const adminLimiter = rateLimit({
 });
 
 // Rate limiter geral (menos restritivo)
+// IMPORTANTE: Usar skip para health check e rota raiz
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto
   max: 100, // máximo 100 requisições por minuto
@@ -32,6 +33,10 @@ const generalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Não aplicar rate limit em health check e rota raiz
+    return req.path === '/health' || req.path === '/';
+  }
 });
 
 module.exports = {
