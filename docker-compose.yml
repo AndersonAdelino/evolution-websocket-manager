@@ -40,6 +40,8 @@ services:
         # IMPORTANTE: Porta interna do container (deve corresponder à variável PORT acima)
         - traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000
         - traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true
+        # CRÍTICO: Informar ao Traefik qual rede usar para se conectar ao serviço
+        - traefik.docker.network=WebsocketNet
 
 volumes:
   evolution_config:
