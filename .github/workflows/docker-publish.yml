@@ -24,7 +24,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: andersonadelino/websocket-evolution
+        images: andersonadelino/evolution-websocket-manager
         tags: |
           type=raw,value=latest
           type=sha,prefix={{branch}}-

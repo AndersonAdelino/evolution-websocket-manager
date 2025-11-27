@@ -1,8 +1,16 @@
 const bcrypt = require('bcrypt');
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
 
-const CONFIG_FILE = path.join(__dirname, 'config.json');
+// Usar config.json no diretório config se existir (para Docker volumes), senão usar raiz
+const CONFIG_DIR = process.env.CONFIG_DIR || __dirname;
+const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
+
+// Garantir que o diretório existe
+if (!fsSync.existsSync(CONFIG_DIR)) {
+  fsSync.mkdirSync(CONFIG_DIR, { recursive: true });
+}
 
 // Senha padrão: admin123 (deve ser alterada no primeiro login)
 const DEFAULT_PASSWORD = 'admin123';

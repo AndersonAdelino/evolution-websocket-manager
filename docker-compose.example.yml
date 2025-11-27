@@ -1,5 +1,11 @@
 version: '3.8'
 
+# Exemplo de uso com Docker Swarm
+# 
+# 1. Copie este arquivo para docker-compose.yml
+# 2. Configure as variáveis de ambiente no arquivo .env ou use secrets do Docker Swarm
+# 3. Execute: docker stack deploy -c docker-compose.yml evolution-websocket-manager
+
 services:
   evolution-websocket-manager:
     image: andersonadelino/evolution-websocket-manager:latest
@@ -78,3 +84,4 @@ networks:
     driver: overlay
     attachable: true
     name: evolution-network
+
