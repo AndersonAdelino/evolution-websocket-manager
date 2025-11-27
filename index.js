@@ -14,6 +14,12 @@ const { generalLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const server = http.createServer(app);
+
+// Configurar timeout do servidor
+server.timeout = 30000; // 30 segundos
+server.keepAliveTimeout = 65000;
+server.headersTimeout = 66000;
+
 const io = new Server(server);
 
 const PORT = process.env.PORT || 3000;
@@ -34,9 +40,9 @@ if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
 // ============================================
 // MIDDLEWARES
 // ============================================
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 
-// Rate limiting geral
+// Rate limiting geral (apenas para API)
 app.use('/api/', generalLimiter);
 
 // Configurar sessão
@@ -57,56 +63,27 @@ app.use(session({
 // ============================================
 // ROTAS
 // ============================================
-// Health check (antes de tudo) - versão rápida sem operações pesadas
-app.get('/health', async (req, res) => {
-  try {
-    // Versão rápida do health check
-    const socketStatus = websocketManager.getSocketStatus();
-    
-    const status = {
-      status: 'ok',
-      websocket: socketStatus.connected ? 'connected' : 'disconnected',
-      uptime: process.uptime(),
-      timestamp: new Date().toISOString()
-    };
-    
-    res.json(status);
-  } catch (error) {
-    res.status(500).json({ status: 'error', message: error.message });
-  }
+// Health check (antes de tudo) - versão ultra rápida
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
 // Rotas da API (antes do static)
 app.use(adminApi);
 
 // Rota para o painel (antes do static para garantir que seja servida)
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-// Arquivos estáticos (deve vir por último)
-app.use(express.static(path.join(__dirname, 'public'), {
-  index: false // Não servir index.html automaticamente
-}));
-
-// Catch-all: servir index.html para todas as rotas do frontend (SPA)
-// Deve vir depois de todas as outras rotas
-app.get('*', (req, res, next) => {
-  // Ignorar rotas da API, WebSocket e health check
-  if (req.path.startsWith('/api/') || 
-      req.path.startsWith('/socket.io/') || 
-      req.path === '/health') {
-    return next(); // Passa para o middleware notFound
-  }
-  
-  // Servir index.html para rotas do frontend
+app.get('/', (req, res, next) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
   res.sendFile(indexPath, (err) => {
     if (err) {
+      logger.error(`Erro ao servir index.html: ${err.message}`);
       next(err);
     }
   });
 });
+
+// Arquivos estáticos (deve vir por último)
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Middleware para rotas não encontradas (não deve ser alcançado devido ao catch-all acima)
 app.use(notFound);
