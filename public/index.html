@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Admin - WebSocket Evolution</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Tela de Login -->
+    <div id="loginScreen" class="screen">
+        <div class="login-container">
+            <div class="login-card">
+                <h1>🔐 Login Administrativo</h1>
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label for="username">Usuário</label>
+                        <input type="text" id="username" name="username" required autocomplete="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Senha</label>
+                        <input type="password" id="password" name="password" required autocomplete="current-password">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Entrar</button>
+                    <div id="loginError" class="error-message"></div>
+                </form>
+                <p class="login-hint">Senha padrão: admin123</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Painel Principal -->
+    <div id="mainScreen" class="screen hidden">
+        <header class="header">
+            <h1>🎛️ Painel de Controle - WebSocket Evolution</h1>
+            <div class="header-actions">
+                <span id="usernameDisplay"></span>
+                <button id="logoutBtn" class="btn btn-secondary">Sair</button>
+            </div>
+        </header>
+
+        <div class="container">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <nav class="nav">
+                    <button class="nav-item active" data-tab="stats">
+                        📊 Estatísticas
+                    </button>
+                    <button class="nav-item" data-tab="settings">
+                        ⚙️ Configurações
+                    </button>
+                    <button class="nav-item" data-tab="webhooks">
+                        🔔 Webhooks
+                    </button>
+                    <button class="nav-item" data-tab="logs">
+                        📋 Logs em Tempo Real
+                    </button>
+                    <button class="nav-item" data-tab="password">
+                        🔑 Alterar Senha
+                    </button>
+                </nav>
+            </aside>
+
+            <!-- Conteúdo Principal -->
+            <main class="main-content">
+                <!-- Aba de Estatísticas -->
+                <div id="statsTab" class="tab-content active">
+                    <div class="tab-header">
+                        <h2>📊 Estatísticas do Sistema</h2>
+                        <div class="tab-actions">
+                            <button id="refreshStatsBtn" class="btn btn-secondary">Atualizar</button>
+                            <button id="resetStatsBtn" class="btn btn-secondary">Resetar Estatísticas</button>
+                        </div>
+                    </div>
+                    <div id="statsContainer" class="stats-container">
+                        <div class="stats-loading">Carregando estatísticas...</div>
+                    </div>
+                </div>
+
+                <!-- Aba de Configurações -->
+                <div id="settingsTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>⚙️ Configurações Gerais</h2>
+                        <button id="saveSettingsBtn" class="btn btn-primary">Salvar Configurações</button>
+                    </div>
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label for="websocketMode">Modo de Conexão</label>
+                            <select id="websocketMode" name="mode">
+                                <option value="global">Global (Todas as instâncias)</option>
+                                <option value="traditional">Traditional (Instâncias específicas)</option>
+                            </select>
+                            <small>Global: conecta em todas as instâncias. Traditional: conecta apenas nas instâncias especificadas.</small>
+                        </div>
+
+                        <div id="traditionalInstancesSection" class="form-group hidden">
+                            <label>Instâncias (Modo Traditional)</label>
+                            <div id="instancesList" class="instances-list"></div>
+                            <div class="input-group">
+                                <input type="text" id="newInstance" placeholder="Nome da instância">
+                                <button type="button" id="addInstanceBtn" class="btn btn-secondary">Adicionar</button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="toggle">
+                                <input type="checkbox" id="webhookEnabled">
+                                <span>Ativar envio de Webhooks</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aba de Webhooks -->
+                <div id="webhooksTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>🔔 Configuração de Webhooks</h2>
+                        <button id="addWebhookBtn" class="btn btn-primary">+ Adicionar Webhook</button>
+                    </div>
+                    <div id="webhooksList" class="webhooks-list">
+                        <p class="empty-state">Nenhum webhook configurado. Clique em "Adicionar Webhook" para começar.</p>
+                    </div>
+                </div>
+
+                <!-- Aba de Logs -->
+                <div id="logsTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>📋 Logs em Tempo Real</h2>
+                        <div class="tab-actions">
+                            <button id="clearLogsBtn" class="btn btn-secondary">Limpar Logs</button>
+                            <label class="toggle">
+                                <input type="checkbox" id="autoScroll" checked>
+                                <span>Auto-scroll</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="logsContainer" class="logs-container">
+                        <div class="log-entry info">
+                            <span class="log-time">Aguardando logs...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Aba de Alterar Senha -->
+                <div id="passwordTab" class="tab-content">
+                    <div class="tab-header">
+                        <h2>🔑 Alterar Senha</h2>
+                    </div>
+                    <div class="settings-form">
+                        <form id="changePasswordForm">
+                            <div class="form-group">
+                                <label for="oldPassword">Senha Atual</label>
+                                <input type="password" id="oldPassword" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newPassword">Nova Senha</label>
+                                <input type="password" id="newPassword" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirmar Nova Senha</label>
+                                <input type="password" id="confirmPassword" required minlength="6">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Alterar Senha</button>
+                            <div id="passwordError" class="error-message"></div>
+                            <div id="passwordSuccess" class="success-message"></div>
+                        </form>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal de Webhook -->
+    <div id="webhookModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="webhookModalTitle">Adicionar Webhook</h3>
+                <button class="modal-close" id="closeWebhookModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="webhookForm">
+                    <input type="hidden" id="webhookIndex">
+                    <div class="form-group">
+                        <label for="webhookName">Nome do Webhook</label>
+                        <input type="text" id="webhookName" placeholder="Ex: Webhook Principal" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="webhookUrl">URL do Webhook</label>
+                        <input type="url" id="webhookUrl" placeholder="https://seu-webhook.com/endpoint" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="toggle">
+                            <input type="checkbox" id="webhookEnabledCheck">
+                            <span>Webhook Ativo</span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>Eventos para enviar</label>
+                        <div id="webhookEvents" class="events-grid"></div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancelWebhookBtn">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Salvar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
+

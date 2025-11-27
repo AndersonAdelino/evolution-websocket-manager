@@ -1,0 +1,13 @@
+{
+  "auth": {
+    "username": "admin",
+    "passwordHash": "será gerado automaticamente na primeira execução"
+  },
+  "settings": {
+    "mode": "global",
+    "webhookEnabled": false,
+    "webhooks": [],
+    "traditionalInstances": []
+  }
+}
+
