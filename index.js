@@ -20,7 +20,19 @@ server.timeout = 30000; // 30 segundos
 server.keepAliveTimeout = 65000;
 server.headersTimeout = 66000;
 
-const io = new Server(server);
+// Configurar Socket.IO com CORS e opções de timeout
+// IMPORTANTE: Configuração para funcionar atrás do Traefik
+const io = new Server(server, {
+  cors: {
+    origin: true, // Aceitar qualquer origem (Traefik gerencia isso)
+    methods: ['GET', 'POST'],
+    credentials: true
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  transports: ['websocket', 'polling'],
+  allowEIO3: true
+});
 
 const PORT = process.env.PORT || 3000;
 
@@ -40,23 +52,29 @@ if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
 // ============================================
 // MIDDLEWARES
 // ============================================
+// Trust proxy (CRÍTICO para Traefik funcionar corretamente)
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting geral (apenas para API)
 app.use('/api/', generalLimiter);
 
 // Configurar sessão
+// IMPORTANTE: Quando atrás do Traefik, sempre usar secure: true se PUBLIC_URL for HTTPS
 const isSecure = PUBLIC_URL.startsWith('https://');
 app.use(session({
   store: new CustomSessionStore(),
   secret: process.env.SESSION_SECRET || 'websocket-evolution-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
+  name: 'sessionId', // Nome customizado para evitar conflitos
   cookie: { 
-    secure: isSecure, // true se usar HTTPS
+    secure: isSecure, // true se usar HTTPS (Traefik termina SSL)
     httpOnly: true,
     maxAge: 24 * 60 * 60 * 1000, // 24 horas
-    sameSite: 'lax'
+    sameSite: 'lax' // lax funciona melhor com Traefik
   }
 }));
 
@@ -71,19 +89,29 @@ app.get('/health', (req, res) => {
 // Rotas da API (antes do static)
 app.use(adminApi);
 
-// Rota para o painel (antes do static para garantir que seja servida)
-app.get('/', (req, res, next) => {
+// Rota para o painel - versão simplificada e robusta
+app.get('/', (req, res) => {
   const indexPath = path.join(__dirname, 'public', 'index.html');
-  res.sendFile(indexPath, (err) => {
-    if (err) {
-      logger.error(`Erro ao servir index.html: ${err.message}`);
-      next(err);
-    }
-  });
+  const fs = require('fs');
+  
+  // Verificar se o arquivo existe
+  if (!fs.existsSync(indexPath)) {
+    logger.error(`Arquivo index.html não encontrado em: ${indexPath}`);
+    return res.status(500).send('Arquivo não encontrado');
+  }
+  
+  // Servir arquivo diretamente
+  res.sendFile(indexPath);
 });
 
 // Arquivos estáticos (deve vir por último)
-app.use(express.static(path.join(__dirname, 'public')));
+// IMPORTANTE: Não servir index.html automaticamente para evitar conflito
+app.use(express.static(path.join(__dirname, 'public'), {
+  index: false, // Não servir index.html automaticamente
+  maxAge: 0,
+  etag: false,
+  lastModified: false
+}));
 
 // Middleware para rotas não encontradas (não deve ser alcançado devido ao catch-all acima)
 app.use(notFound);

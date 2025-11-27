@@ -21,7 +21,19 @@ const AVAILABLE_EVENTS = [
 ];
 
 async function initializeWebSocket(evolutionApiUrl, evolutionApiKey) {
-  const settings = await getSettings();
+  let settings;
+  try {
+    settings = await getSettings();
+  } catch (error) {
+    logger.error(`Erro ao carregar configurações: ${error.message}`);
+    // Usar configuração padrão se houver erro
+    settings = {
+      mode: 'global',
+      webhookEnabled: false,
+      webhooks: [],
+      traditionalInstances: []
+    };
+  }
   currentConfig = settings;
 
   // Desconectar sockets existentes

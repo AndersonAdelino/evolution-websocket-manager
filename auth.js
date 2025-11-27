@@ -17,10 +17,17 @@ const DEFAULT_PASSWORD = 'admin123';
 
 async function loadConfig() {
   try {
-    const data = await fs.readFile(CONFIG_FILE, 'utf8');
+    // Adicionar timeout para leitura do arquivo
+    const data = await Promise.race([
+      fs.readFile(CONFIG_FILE, 'utf8'),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout ao ler config.json')), 5000)
+      )
+    ]);
     return JSON.parse(data);
   } catch (error) {
-    // Se não existir, criar com padrão
+    // Se não existir ou houver erro, criar com padrão
+    console.log(`Criando config.json padrão: ${error.message}`);
     const defaultConfig = {
       auth: {
         username: 'admin',
@@ -33,7 +40,11 @@ async function loadConfig() {
         traditionalInstances: []
       }
     };
-    await saveConfig(defaultConfig);
+    try {
+      await saveConfig(defaultConfig);
+    } catch (saveError) {
+      console.error(`Erro ao salvar config padrão: ${saveError.message}`);
+    }
     return defaultConfig;
   }
 }
