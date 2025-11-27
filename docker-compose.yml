@@ -1,8 +1,8 @@
 version: '3.8'
-
 services:
   evolution-websocket-manager:
     image: andersonadelino/evolution-websocket-manager:latest
+    hostname: evolution-websocket-manager
     volumes:
       - evolution_config:/app/config
     networks:
@@ -32,7 +32,8 @@ services:
           - node.role == manager
       labels:
         - traefik.enable=1
-        - traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio.com`)
+        - traefik.docker.network=SolaziusNet
+        - traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio`)
         - traefik.http.routers.evolution-websocket-manager.entrypoints=websecure
         - traefik.http.routers.evolution-websocket-manager.priority=1
         - traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencryptresolver
@@ -40,8 +41,9 @@ services:
         # IMPORTANTE: Porta interna do container (deve corresponder à variável PORT acima)
         - traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000
         - traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true
-        # CRÍTICO: Informar ao Traefik qual rede usar para se conectar ao serviço
-        - traefik.docker.network=WebsocketNet
+        - traefik.http.services.evolution-websocket-manager.loadbalancer.server.scheme=http
+        - traefik.http.services.evolution-websocket-manager.loadbalancer.healthcheck.path=/
+        - traefik.http.services.evolution-websocket-manager.loadbalancer.healthcheck.interval=10s
 
 volumes:
   evolution_config:
