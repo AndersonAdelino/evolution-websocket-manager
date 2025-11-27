@@ -14,19 +14,35 @@ class CustomSessionStore extends EventEmitter {
 
   get(sid, callback) {
     try {
-      const session = this.sessions.get(sid);
-      if (!session) {
+      const stored = this.sessions.get(sid);
+      if (!stored) {
         return callback();
       }
       
       // Verificar se a sessão expirou
-      if (session.expires && session.expires < Date.now()) {
+      if (stored.expires && stored.expires < Date.now()) {
         this.sessions.delete(sid);
         return callback();
       }
       
-      // Retornar os dados da sessão (express-session criará o objeto Session a partir disso)
-      callback(null, session.data);
+      // Retornar os dados da sessão
+      // Garantir que o objeto tenha a estrutura esperada pelo express-session
+      const sessionData = stored.data;
+      
+      // Se sessionData não tiver cookie, criar um objeto cookie básico
+      if (!sessionData.cookie) {
+        sessionData.cookie = {
+          originalMaxAge: 24 * 60 * 60 * 1000,
+          expires: stored.expires ? new Date(stored.expires) : null,
+          secure: false,
+          httpOnly: true,
+          domain: undefined,
+          path: '/',
+          sameSite: 'lax'
+        };
+      }
+      
+      callback(null, sessionData);
     } catch (error) {
       callback(error);
     }
