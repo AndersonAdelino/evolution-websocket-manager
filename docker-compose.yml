@@ -37,6 +37,7 @@ services:
         - traefik.http.routers.evolution-websocket-manager.priority=1
         - traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencryptresolver
         - traefik.http.routers.evolution-websocket-manager.service=evolution-websocket-manager
+        # IMPORTANTE: Porta interna do container (deve corresponder à variável PORT acima)
         - traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000
         - traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true
 

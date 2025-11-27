@@ -107,31 +107,42 @@ app.get('/health', (req, res) => {
 // Rotas da API (antes do static)
 app.use(adminApi);
 
-// Rota para o painel - versão simplificada e robusta
-app.get('/', (req, res, next) => {
+// Rota para o painel - versão otimizada para evitar timeout
+// Carregar o arquivo uma vez na inicialização para evitar I/O a cada requisição
+const fs = require('fs').promises;
+let indexHtmlCache = null;
+let indexHtmlPath = path.join(__dirname, 'public', 'index.html');
+
+// Carregar index.html na inicialização
+async function loadIndexHtml() {
   try {
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    const fs = require('fs');
-    
-    // Verificar se o arquivo existe (síncrono mas rápido)
-    if (!fs.existsSync(indexPath)) {
-      logger.error(`Arquivo index.html não encontrado em: ${indexPath}`);
-      return res.status(500).send('Arquivo não encontrado');
-    }
-    
-    // Servir arquivo diretamente com callback para capturar erros
-    res.sendFile(indexPath, (err) => {
-      if (err) {
-        logger.error(`Erro ao servir index.html: ${err.message}`);
-        if (!res.headersSent) {
-          next(err);
-        }
-      }
-    });
+    indexHtmlCache = await fs.readFile(indexHtmlPath, 'utf8');
+    logger.success('index.html carregado com sucesso');
   } catch (error) {
-    logger.error(`Erro na rota /: ${error.message}`);
-    next(error);
+    logger.error(`Erro ao carregar index.html: ${error.message}`);
+    indexHtmlCache = '<!DOCTYPE html><html><head><title>Erro</title></head><body><h1>Erro ao carregar página</h1></body></html>';
   }
+}
+
+app.get('/', (req, res) => {
+  // Se o cache estiver disponível, usar ele (muito mais rápido)
+  if (indexHtmlCache) {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.send(indexHtmlCache);
+  }
+  
+  // Fallback: tentar ler o arquivo (caso o cache não tenha sido carregado)
+  fs.readFile(indexHtmlPath, 'utf8')
+    .then(content => {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.send(content);
+    })
+    .catch(error => {
+      logger.error(`Erro ao servir index.html: ${error.message}`);
+      res.status(500).send('Erro ao carregar página');
+    });
 });
 
 // Arquivos estáticos (deve vir por último)
@@ -204,6 +215,11 @@ server.listen(PORT, () => {
   logger.info(`🏥 Health check: ${PUBLIC_URL}/health`);
   logger.info(`🎛️  Painel Admin: ${PUBLIC_URL}`);
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  
+  // Carregar index.html em cache (não bloquear o servidor)
+  loadIndexHtml().catch(err => {
+    logger.error(`Erro ao carregar index.html: ${err.message}`);
+  });
   
   // Inicializar WebSocket da Evolution API (não bloquear o servidor)
   startEvolutionWebSocket().catch(err => {
