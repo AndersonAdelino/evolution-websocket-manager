@@ -335,7 +335,11 @@ async function saveSettings() {
         if (response.ok) {
             currentSettings = settings;
             alert('Configurações salvas com sucesso! A aplicação será reiniciada para aplicar as mudanças.');
-            location.reload();
+            if (typeof location !== 'undefined' && location.reload) {
+                location.reload();
+            } else if (typeof window !== 'undefined' && window.location) {
+                window.location.reload();
+            }
         } else {
             alert('Erro ao salvar configurações');
         }
