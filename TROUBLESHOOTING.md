@@ -81,6 +81,8 @@ No `docker-compose.yml`, verifique se o domínio na label do Traefik corresponde
 - traefik.http.routers.evolution-websocket-manager.rule=Host(`ws.andersonadelino.com.br`)
 ```
 
+**IMPORTANTE**: Se você está acessando `ws.andersonadelino.com.br`, mas no docker-compose está `websocket.seudominio.com`, você precisa atualizar a label do Traefik para o domínio correto.
+
 ### Solução: Recriar o serviço
 
 Se nada funcionar, tente recriar o serviço:

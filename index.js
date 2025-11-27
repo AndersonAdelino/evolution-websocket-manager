@@ -57,31 +57,23 @@ app.use(session({
 // ============================================
 // ROTAS
 // ============================================
-// Health check (antes de tudo)
+// Health check (antes de tudo) - versão rápida sem operações pesadas
 app.get('/health', async (req, res) => {
-  const settings = await getSettings();
-  const socketStatus = websocketManager.getSocketStatus();
-  const webhookQueue = require('./webhook-queue');
-  const queueStats = webhookQueue.getStats();
-  const metrics = require('./metrics');
-  const summary = metrics.getSummary();
-  
-  const status = {
-    status: 'ok',
-    publicUrl: PUBLIC_URL,
-    websocket: socketStatus.connected ? 'connected' : 'disconnected',
-    socketId: socketStatus.socketId,
-    uptime: process.uptime(),
-    timestamp: new Date().toISOString(),
-    settings: {
-      mode: settings.mode,
-      webhookEnabled: settings.webhookEnabled,
-      webhooksCount: settings.webhooks ? settings.webhooks.length : 0
-    },
-    webhookQueue: queueStats,
-    metrics: summary
-  };
-  res.json(status);
+  try {
+    // Versão rápida do health check
+    const socketStatus = websocketManager.getSocketStatus();
+    
+    const status = {
+      status: 'ok',
+      websocket: socketStatus.connected ? 'connected' : 'disconnected',
+      uptime: process.uptime(),
+      timestamp: new Date().toISOString()
+    };
+    
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ status: 'error', message: error.message });
+  }
 });
 
 // Rotas da API (antes do static)
@@ -98,12 +90,22 @@ app.use(express.static(path.join(__dirname, 'public'), {
 }));
 
 // Catch-all: servir index.html para todas as rotas do frontend (SPA)
-app.get('*', (req, res) => {
-  // Ignorar rotas da API e WebSocket
-  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
-    return res.status(404).json({ error: 'Not found' });
+// Deve vir depois de todas as outras rotas
+app.get('*', (req, res, next) => {
+  // Ignorar rotas da API, WebSocket e health check
+  if (req.path.startsWith('/api/') || 
+      req.path.startsWith('/socket.io/') || 
+      req.path === '/health') {
+    return next(); // Passa para o middleware notFound
   }
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  
+  // Servir index.html para rotas do frontend
+  const indexPath = path.join(__dirname, 'public', 'index.html');
+  res.sendFile(indexPath, (err) => {
+    if (err) {
+      next(err);
+    }
+  });
 });
 
 // Middleware para rotas não encontradas (não deve ser alcançado devido ao catch-all acima)
