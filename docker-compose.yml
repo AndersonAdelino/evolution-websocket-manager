@@ -6,7 +6,7 @@ services:
     volumes:
       - evolution_config:/app/config
     networks:
-      - WebsocketNet
+      - SolaziusNet
     environment:
       # ============================================
       # CONFIGURAÇÕES DA EVOLUTION API (OBRIGATÓRIAS)
@@ -51,6 +51,6 @@ volumes:
     name: evolution_config
 
 networks:
-  WebsocketNet:
+  SolaziusNet:
     external: true
-    name: WebsocketNet
+    name: SolaziusNet
