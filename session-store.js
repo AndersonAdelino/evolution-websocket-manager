@@ -13,18 +13,23 @@ class CustomSessionStore extends EventEmitter {
   }
 
   get(sid, callback) {
-    const session = this.sessions.get(sid);
-    if (!session) {
-      return callback();
+    try {
+      const session = this.sessions.get(sid);
+      if (!session) {
+        return callback();
+      }
+      
+      // Verificar se a sessão expirou
+      if (session.expires && session.expires < Date.now()) {
+        this.sessions.delete(sid);
+        return callback();
+      }
+      
+      // Retornar os dados da sessão (express-session criará o objeto Session a partir disso)
+      callback(null, session.data);
+    } catch (error) {
+      callback(error);
     }
-    
-    // Verificar se a sessão expirou
-    if (session.expires && session.expires < Date.now()) {
-      this.sessions.delete(sid);
-      return callback();
-    }
-    
-    callback(null, session.data);
   }
 
   createSession(req, sess) {
@@ -34,12 +39,16 @@ class CustomSessionStore extends EventEmitter {
   }
 
   set(sid, session, callback) {
-    const expires = session.cookie?.expires;
-    this.sessions.set(sid, {
-      data: session,
-      expires: expires ? new Date(expires).getTime() : null
-    });
-    callback();
+    try {
+      const expires = session.cookie?.expires;
+      this.sessions.set(sid, {
+        data: session,
+        expires: expires ? new Date(expires).getTime() : null
+      });
+      callback();
+    } catch (error) {
+      callback(error);
+    }
   }
 
   destroy(sid, callback) {
