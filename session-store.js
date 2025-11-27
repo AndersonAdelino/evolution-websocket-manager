@@ -27,6 +27,12 @@ class CustomSessionStore extends EventEmitter {
     callback(null, session.data);
   }
 
+  createSession(req, sess) {
+    // Método necessário para express-session funcionar corretamente
+    // Retorna os dados da sessão diretamente
+    return sess;
+  }
+
   set(sid, session, callback) {
     const expires = session.cookie?.expires;
     this.sessions.set(sid, {
