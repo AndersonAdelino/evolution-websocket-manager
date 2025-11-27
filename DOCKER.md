@@ -17,6 +17,7 @@ Crie um arquivo `.env` na raiz do projeto ou configure as variáveis no Docker S
 ```env
 EVOLUTION_API_URL=https://sua-api-evolution.com
 EVOLUTION_API_KEY=sua_api_key_aqui
+PUBLIC_URL=https://websocket.seudominio.com
 PORT=3000
 SESSION_SECRET=seu_secret_key_seguro_aqui
 NODE_ENV=production

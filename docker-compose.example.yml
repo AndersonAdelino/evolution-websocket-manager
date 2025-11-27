@@ -20,6 +20,8 @@ services:
       # ============================================
       # CONFIGURAÇÕES OPCIONAIS
       # ============================================
+      # URL pública para acessar o painel (ex: https://websocket.seudominio.com)
+      - PUBLIC_URL=https://websocket.seudominio.com
       - PORT=3000
       - SESSION_SECRET=websocket-evolution-secret-key-change-in-production
       - NODE_ENV=production

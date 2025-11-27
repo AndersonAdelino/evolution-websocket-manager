@@ -22,6 +22,7 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL;
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY;
+const PUBLIC_URL = process.env.PUBLIC_URL || `http://localhost:${PORT}`;
 
 // Validar configurações
 if (!EVOLUTION_API_URL || !EVOLUTION_API_KEY) {
@@ -38,11 +39,17 @@ app.use(express.json());
 app.use('/api/', generalLimiter);
 
 // Configurar sessão
+const isSecure = PUBLIC_URL.startsWith('https://');
 app.use(session({
   secret: process.env.SESSION_SECRET || 'websocket-evolution-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
-  cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 } // 24 horas
+  cookie: { 
+    secure: isSecure, // true se usar HTTPS
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000, // 24 horas
+    sameSite: 'lax'
+  }
 }));
 
 // ============================================
@@ -69,6 +76,8 @@ app.get('/health', async (req, res) => {
   const summary = metrics.getSummary();
   
   const status = {
+    status: 'ok',
+    publicUrl: PUBLIC_URL,
     websocket: socketStatus.connected ? 'connected' : 'disconnected',
     socketId: socketStatus.socketId,
     uptime: process.uptime(),
@@ -142,8 +151,8 @@ server.listen(PORT, async () => {
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   logger.info('🌐 SERVIDOR HTTP INICIADO');
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  logger.info(`🏥 Health check: http://localhost:${PORT}/health`);
-  logger.info(`🎛️  Painel Admin: http://localhost:${PORT}`);
+  logger.info(`🏥 Health check: ${PUBLIC_URL}/health`);
+  logger.info(`🎛️  Painel Admin: ${PUBLIC_URL}`);
   logger.info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   
   // Inicializar WebSocket da Evolution API

@@ -49,6 +49,7 @@ npm install
 ```env
 EVOLUTION_API_URL=https://sua-api-evolution.com
 EVOLUTION_API_KEY=sua_api_key_aqui
+PUBLIC_URL=http://localhost:3000
 PORT=3000
 SESSION_SECRET=seu_secret_key_aqui
 ```
