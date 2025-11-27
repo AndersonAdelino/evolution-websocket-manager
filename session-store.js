@@ -2,8 +2,11 @@
 // Baseado em memória, mas sem o warning do MemoryStore
 // Adequado para ambientes com 1 réplica
 
-class CustomSessionStore {
+const EventEmitter = require('events');
+
+class CustomSessionStore extends EventEmitter {
   constructor() {
+    super();
     this.sessions = new Map();
     // Limpar sessões expiradas a cada hora
     setInterval(() => this.cleanExpired(), 60 * 60 * 1000);
