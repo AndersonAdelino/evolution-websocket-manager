@@ -15,7 +15,7 @@ class CustomSessionStore extends EventEmitter {
   get(sid, callback) {
     try {
       const stored = this.sessions.get(sid);
-      if (!stored) {
+      if (!stored || !stored.data) {
         return callback();
       }
       
@@ -25,24 +25,9 @@ class CustomSessionStore extends EventEmitter {
         return callback();
       }
       
-      // Criar uma cópia limpa dos dados da sessão
-      // O express-session precisa de um objeto simples (plain object)
-      const sessionData = JSON.parse(JSON.stringify(stored.data));
-      
-      // Garantir que tenha a propriedade cookie necessária
-      if (!sessionData.cookie) {
-        sessionData.cookie = {
-          originalMaxAge: 24 * 60 * 60 * 1000,
-          expires: stored.expires ? new Date(stored.expires) : null,
-          secure: false,
-          httpOnly: true,
-          domain: undefined,
-          path: '/',
-          sameSite: 'lax'
-        };
-      }
-      
-      callback(null, sessionData);
+      // Retornar diretamente os dados salvos
+      // O express-session espera receber o objeto de sessão completo como foi salvo
+      callback(null, stored.data);
     } catch (error) {
       callback(error);
     }
@@ -56,10 +41,27 @@ class CustomSessionStore extends EventEmitter {
 
   set(sid, session, callback) {
     try {
-      const expires = session.cookie?.expires;
+      if (!session || !session.cookie) {
+        return callback(new Error('Invalid session data'));
+      }
+      
+      const expires = session.cookie.expires;
+      // Salvar timestamp em milissegundos
+      const expiresTimestamp = expires ? (expires instanceof Date ? expires.getTime() : new Date(expires).getTime()) : null;
+      
+      // Criar cópia dos dados da sessão para armazenar
+      // Isso evita problemas com referências e garante que temos os dados corretos
+      const sessionCopy = {
+        ...session,
+        cookie: {
+          ...session.cookie,
+          expires: expires ? (expires instanceof Date ? expires : new Date(expires)) : null
+        }
+      };
+      
       this.sessions.set(sid, {
-        data: session,
-        expires: expires ? new Date(expires).getTime() : null
+        data: sessionCopy,
+        expires: expiresTimestamp
       });
       callback();
     } catch (error) {
