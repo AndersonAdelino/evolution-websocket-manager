@@ -8,7 +8,7 @@ services:
       # CONFIGURAÇÕES DA EVOLUTION API (OBRIGATÓRIAS)
       # ============================================
       # Configure diretamente aqui substituindo os valores abaixo:
-      - EVOLUTION_API_URL=https://api.seusite.com
+      - EVOLUTION_API_URL=https://evo.seudominio.com
       - EVOLUTION_API_KEY=sua_api_key_aqui
       
       # ============================================
@@ -32,7 +32,8 @@ services:
     
     networks:
       - evolution-network
-      - traefik-public  # Rede do Traefik (ajuste o nome se necessário)
+      - traefik-public  # Rede do Traefik
+      - WebsocketNet    # Rede interna para comunicação com Evolution API
     
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
@@ -64,13 +65,15 @@ services:
       labels:
         - "com.docker.stack.namespace=evolution-websocket-manager"
         - "com.docker.service.name=evolution-websocket-manager"
-        # Traefik Labels
-        - "traefik.enable=true"
+        # Traefik Labels (alinhado com Evolution API)
+        - "traefik.enable=1"
         - "traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio.com`)"
         - "traefik.http.routers.evolution-websocket-manager.entrypoints=websecure"
-        - "traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencrypt"
-        - "traefik.http.routers.evolution-websocket-manager.tls=true"
+        - "traefik.http.routers.evolution-websocket-manager.priority=1"
+        - "traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencryptresolver"
+        - "traefik.http.routers.evolution-websocket-manager.service=evolution-websocket-manager"
         - "traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000"
+        - "traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true"
         - "traefik.docker.network=traefik-public"
       resources:
         limits:
@@ -92,3 +95,7 @@ networks:
   traefik-public:
     external: true
     name: traefik-public
+  WebsocketNet:
+    driver: overlay
+    attachable: true
+    name: WebsocketNet
