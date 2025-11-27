@@ -3,6 +3,10 @@ version: '3.8'
 services:
   evolution-websocket-manager:
     image: andersonadelino/evolution-websocket-manager:latest
+    volumes:
+      - evolution_config:/app/config
+    networks:
+      - WebsocketNet
     environment:
       # ============================================
       # CONFIGURAÇÕES DA EVOLUTION API (OBRIGATÓRIAS)
@@ -20,82 +24,28 @@ services:
       - SESSION_SECRET=websocket-evolution-secret-key-change-in-production
       - NODE_ENV=production
       - CONFIG_DIR=/app/config
-      
-    ports:
-      - target: 3000
-        published: 3000
-        protocol: tcp
-        mode: ingress
-    
-    volumes:
-      - evolution-config:/app/config
-    
-    networks:
-      - evolution-network
-      - traefik-public  # Rede do Traefik
-      - WebsocketNet    # Rede interna para comunicação com Evolution API
-    
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-    
     deploy:
       mode: replicated
       replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
-      update_config:
-        parallelism: 1
-        delay: 10s
-        failure_action: rollback
-        order: start-first
-      rollback_config:
-        parallelism: 1
-        delay: 10s
-        order: start-first
       placement:
         constraints:
           - node.role == manager
       labels:
-        - "com.docker.stack.namespace=evolution-websocket-manager"
-        - "com.docker.service.name=evolution-websocket-manager"
-        # Traefik Labels (alinhado com Evolution API)
-        - "traefik.enable=1"
-        - "traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio.com`)"
-        - "traefik.http.routers.evolution-websocket-manager.entrypoints=websecure"
-        - "traefik.http.routers.evolution-websocket-manager.priority=1"
-        - "traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencryptresolver"
-        - "traefik.http.routers.evolution-websocket-manager.service=evolution-websocket-manager"
-        - "traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000"
-        - "traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true"
-        - "traefik.docker.network=traefik-public"
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
-        reservations:
-          cpus: '0.25'
-          memory: 256M
+        - traefik.enable=1
+        - traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio.com`)
+        - traefik.http.routers.evolution-websocket-manager.entrypoints=websecure
+        - traefik.http.routers.evolution-websocket-manager.priority=1
+        - traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencryptresolver
+        - traefik.http.routers.evolution-websocket-manager.service=evolution-websocket-manager
+        - traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000
+        - traefik.http.services.evolution-websocket-manager.loadbalancer.passHostHeader=true
 
 volumes:
-  evolution-config:
-    driver: local
+  evolution_config:
+    external: true
+    name: evolution_config
 
 networks:
-  evolution-network:
-    driver: overlay
-    attachable: true
-    name: evolution-network
-  traefik-public:
-    external: true
-    name: traefik-public
   WebsocketNet:
-    driver: overlay
-    attachable: true
+    external: true
     name: WebsocketNet

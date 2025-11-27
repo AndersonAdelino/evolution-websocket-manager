@@ -1,5 +1,41 @@
 # Troubleshooting - Problemas de Acesso
 
+## ⚠️ Erro: "network traefik-public is declared as external, but could not be found"
+
+### Solução 1: Criar a rede traefik-public
+
+Execute no servidor Docker Swarm:
+
+```bash
+docker network create --driver overlay --attachable traefik-public
+```
+
+### Solução 2: Verificar o nome correto da rede do Traefik
+
+Se você já tem o Traefik rodando, verifique o nome da rede:
+
+```bash
+docker network ls | grep traefik
+```
+
+Depois, atualize o `docker-compose.yml` na seção `networks`:
+
+```yaml
+networks:
+  traefik-public:
+    external: true
+    name: NOME_DA_REDE_TRAEFIK  # Substitua pelo nome real encontrado
+```
+
+### Solução 3: Verificar no Portainer
+
+1. Acesse o Portainer
+2. Vá em **Networks**
+3. Procure pela rede do Traefik
+4. Use o nome exato encontrado no `docker-compose.yml`
+
+---
+
 ## Problema: Não consigo acessar o painel pela URL configurada
 
 ### 1. Verificar se o serviço está rodando

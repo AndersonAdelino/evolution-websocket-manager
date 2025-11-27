@@ -3,6 +3,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const session = require('express-session');
+const CustomSessionStore = require('./session-store');
 const path = require('path');
 const logger = require('./logger');
 const websocketManager = require('./websocket-manager');
@@ -41,6 +42,7 @@ app.use('/api/', generalLimiter);
 // Configurar sessão
 const isSecure = PUBLIC_URL.startsWith('https://');
 app.use(session({
+  store: new CustomSessionStore(),
   secret: process.env.SESSION_SECRET || 'websocket-evolution-secret-key-change-in-production',
   resave: false,
   saveUninitialized: false,
