@@ -32,6 +32,7 @@ services:
     
     networks:
       - evolution-network
+      - traefik-public  # Rede do Traefik (ajuste o nome se necessário)
     
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
@@ -63,6 +64,14 @@ services:
       labels:
         - "com.docker.stack.namespace=evolution-websocket-manager"
         - "com.docker.service.name=evolution-websocket-manager"
+        # Traefik Labels
+        - "traefik.enable=true"
+        - "traefik.http.routers.evolution-websocket-manager.rule=Host(`websocket.seudominio.com`)"
+        - "traefik.http.routers.evolution-websocket-manager.entrypoints=websecure"
+        - "traefik.http.routers.evolution-websocket-manager.tls.certresolver=letsencrypt"
+        - "traefik.http.routers.evolution-websocket-manager.tls=true"
+        - "traefik.http.services.evolution-websocket-manager.loadbalancer.server.port=3000"
+        - "traefik.docker.network=traefik-public"
       resources:
         limits:
           cpus: '1'
@@ -80,3 +89,6 @@ networks:
     driver: overlay
     attachable: true
     name: evolution-network
+  traefik-public:
+    external: true
+    name: traefik-public
