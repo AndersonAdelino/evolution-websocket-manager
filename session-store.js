@@ -41,26 +41,29 @@ class CustomSessionStore extends EventEmitter {
 
   set(sid, session, callback) {
     try {
-      if (!session || !session.cookie) {
-        return callback(new Error('Invalid session data'));
+      if (!session) {
+        return callback(new Error('Session is required'));
       }
       
-      const expires = session.cookie.expires;
-      // Salvar timestamp em milissegundos
+      // Extrair dados relevantes da sessão
+      const expires = session.cookie?.expires;
       const expiresTimestamp = expires ? (expires instanceof Date ? expires.getTime() : new Date(expires).getTime()) : null;
       
-      // Criar cópia dos dados da sessão para armazenar
-      // Isso evita problemas com referências e garante que temos os dados corretos
-      const sessionCopy = {
-        ...session,
-        cookie: {
-          ...session.cookie,
-          expires: expires ? (expires instanceof Date ? expires : new Date(expires)) : null
-        }
+      // Criar um objeto simples apenas com os dados da sessão (sem métodos)
+      // Remover propriedades que não devem ser armazenadas
+      const sessionData = {
+        cookie: session.cookie || {},
+        // Copiar todas as propriedades customizadas (exceto métodos)
+        ...Object.keys(session).reduce((acc, key) => {
+          if (key !== 'cookie' && typeof session[key] !== 'function' && key !== 'id' && key !== 'reload' && key !== 'save' && key !== 'touch' && key !== 'destroy') {
+            acc[key] = session[key];
+          }
+          return acc;
+        }, {})
       };
       
       this.sessions.set(sid, {
-        data: sessionCopy,
+        data: sessionData,
         expires: expiresTimestamp
       });
       callback();
